@@ -1,0 +1,4 @@
+[workspace]
+members = ["mdb-api", "tokio-mdb"]
+
+resolver = "2"
