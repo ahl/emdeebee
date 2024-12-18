@@ -1,33 +1,66 @@
 mod alloc;
-mod sys;
+pub mod sys;
+
+use std::{ffi::CString, marker::PhantomData, ptr::null};
 
 pub use sys::mdb_modinfo_t;
+use sys::{mdb_dcmd_t, MDB_API_VERSION};
 
-pub struct MdbDcmd {
-    pub name: &'static str,
-    pub usage: &'static str,
-    pub description: &'static str,
-    pub r#impl: T,
-}
-
-pub trait MdbDcmdImpl {
-    fn name() -> String;
-    fn usage() -> String;
-    fn description() -> String;
+pub trait Dcmd {
+    fn name(&self) -> String;
+    fn usage(&self) -> String;
+    fn description(&self) -> String;
     fn command();
-    fn help() {}
-    fn tab_complete() {}
 }
 
-pub struct MdbModInfo {
-    pub dcmds: &'static [MdbDcmd],
+// pub struct Modinfo {
+//     pub dcmds: Vec<Box<dyn Dcmd>>,
+// }
+
+struct Xxx<T> {
+    _p: PhantomData<T>,
 }
 
-impl MdbModInfo {
-    pub fn to_native(&self) -> *const mdb_modinfo_t {
-        todo!()
-    }
-}
+impl<T> Xxx<T> {}
+
+const NULL_DCMD: mdb_dcmd_t = mdb_dcmd_t {
+    dc_name: null(),
+    dc_usage: null(),
+    dc_descr: null(),
+    dc_funcp: None,
+    dc_help: None,
+    dc_tabp: None,
+};
+
+// impl Modinfo {
+//     pub fn to_native(&self) -> *const mdb_modinfo_t {
+//         let dcmds = self
+//             .dcmds
+//             .iter()
+//             .map(|dcmd| {
+//                 let dc_name = CString::new(dcmd.name()).unwrap().into_raw();
+//                 let dc_usage = CString::new(dcmd.usage()).unwrap().into_raw();
+//                 let dc_descr = CString::new(dcmd.description()).unwrap().into_raw();
+//                 mdb_dcmd_t {
+//                     dc_name,
+//                     dc_usage,
+//                     dc_descr,
+//                     dc_funcp: todo!(),
+//                     dc_help: todo!(),
+//                     dc_tabp: todo!(),
+//                 }
+//             })
+//             .chain(std::iter::once(NULL_DCMD))
+//             .collect::<Vec<_>>();
+
+//         let ret = mdb_modinfo_t {
+//             mi_dvers: MDB_API_VERSION,
+//             mi_dcmds: null(),
+//             mi_walkers: null(),
+//         };
+//         Box::into_raw(Box::new(ret)).cast()
+//     }
+// }
 
 #[macro_export]
 macro_rules! mdb_print {
