@@ -1,14 +1,36 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use mdb_api::{mdb_modinfo_t, MdbDcmd, MdbDcmdImpl, MdbModInfo};
+
+const MODINFO: MdbModInfo = MdbModInfo {
+    dcmds: &[MdbDcmd {
+        name: "test1",
+        usage: "test1 usage",
+        description: "this is test1!",
+        command: ??
+    }],
+};
+
+struct HelloDcmd;
+
+impl MdbDcmdImpl for HelloDcmd{
+    fn name() -> String {
+        todo!()
+    }
+
+    fn usage() -> String {
+        todo!()
+    }
+
+    fn description() -> String {
+        todo!()
+    }
+
+    fn command() {
+        todo!()
+    }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[no_mangle]
+pub extern "C" fn _mdb_init() -> *const mdb_modinfo_t {
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+    MODINFO.to_native()
 }
