@@ -90,14 +90,14 @@ macro_rules! mdb_print {
             unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\0") };
         let arg = ::std::ffi::CString::new($msg.to_string())
             .expect("mdb_print CString::new()");
-        unsafe { ::$crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
     };
     ($fmt:expr, $($arg:tt)*) => {
         let fmt =
             unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\0") };
         let arg = ::std::ffi::CString::new(format!($fmt, $($arg)*))
             .expect("mdb_print CString::new()");
-        unsafe { ::$crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
     }
 }
 
@@ -106,20 +106,20 @@ macro_rules! mdb_println {
     () => {
         let fmt =
             unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"\n\0") };
-        unsafe { ::$crate::sys::mdb_printf(fmt.as_ptr()) };
+        unsafe { $crate::sys::mdb_printf(fmt.as_ptr()) };
     };
     ($msg:expr) => {
         let fmt =
             unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\n\0") };
         let arg = ::std::ffi::CString::new($msg.to_string())
             .expect("mdb_println CString::new()");
-        unsafe { ::$crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
     };
     ($fmt:expr, $($arg:tt)*) => {
         let fmt =
             unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\n\0") };
         let arg = ::std::ffi::CString::new(format!($fmt, $($arg)*))
             .expect("mdb_println CString::new()");
-        unsafe { ::$crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
     }
 }
