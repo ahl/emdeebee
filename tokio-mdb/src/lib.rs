@@ -3,7 +3,9 @@ mod walk_tasks;
 use mdb_api::{
     mdb_modinfo_t,
     sys::{mdb_dcmd_t, mdb_walk_state_t},
+    Modinfo,
 };
+use walk_tasks::{TokioTaskWalker, TOKIO_TASK_WALKER};
 
 // const MODINFO: MdbModInfo = MdbModInfo {
 //     dcmds: &[MdbDcmd {
@@ -40,10 +42,14 @@ struct HelloDcmd;
 //     // }
 // }
 
-// #[no_mangle]
-// pub extern "C" fn _mdb_init() -> *const mdb_modinfo_t {
-//     MODINFO.to_native()
-// }
+#[no_mangle]
+pub extern "C" fn _mdb_init() -> *const mdb_modinfo_t {
+    let modinfo = Modinfo {
+        walker: vec![Box::new(TokioTaskWalker::default())],
+    };
+
+    modinfo.to_native()
+}
 // /// this is the description
 // #[mdb_magic]
 // fn potato(addr: u64, flags: u16, args: Vec<EnumThings>) {}

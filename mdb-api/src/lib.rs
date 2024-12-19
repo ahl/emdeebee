@@ -1,10 +1,14 @@
 mod alloc;
 pub mod sys;
 
-use std::{ffi::CString, marker::PhantomData, ptr::null};
+use std::{
+    ffi::CString,
+    marker::PhantomData,
+    ptr::{null, null_mut},
+};
 
 pub use sys::mdb_modinfo_t;
-use sys::{mdb_dcmd_t, MDB_API_VERSION};
+use sys::{mdb_dcmd_t, mdb_walker_t, MDB_API_VERSION};
 
 pub trait Dcmd {
     fn name(&self) -> String;
@@ -13,15 +17,14 @@ pub trait Dcmd {
     fn command();
 }
 
-// pub struct Modinfo {
-//     pub dcmds: Vec<Box<dyn Dcmd>>,
-// }
-
-struct Xxx<T> {
-    _p: PhantomData<T>,
+pub struct Modinfo {
+    // pub dcmds: Vec<Box<dyn Dcmd>>,
+    pub walker: Vec<Box<dyn BigWalker>>,
 }
 
-impl<T> Xxx<T> {}
+pub trait BigWalker {
+    fn linkage(&self) -> mdb_walker_t;
+}
 
 const NULL_DCMD: mdb_dcmd_t = mdb_dcmd_t {
     dc_name: null(),
@@ -32,35 +35,53 @@ const NULL_DCMD: mdb_dcmd_t = mdb_dcmd_t {
     dc_tabp: None,
 };
 
-// impl Modinfo {
-//     pub fn to_native(&self) -> *const mdb_modinfo_t {
-//         let dcmds = self
-//             .dcmds
-//             .iter()
-//             .map(|dcmd| {
-//                 let dc_name = CString::new(dcmd.name()).unwrap().into_raw();
-//                 let dc_usage = CString::new(dcmd.usage()).unwrap().into_raw();
-//                 let dc_descr = CString::new(dcmd.description()).unwrap().into_raw();
-//                 mdb_dcmd_t {
-//                     dc_name,
-//                     dc_usage,
-//                     dc_descr,
-//                     dc_funcp: todo!(),
-//                     dc_help: todo!(),
-//                     dc_tabp: todo!(),
-//                 }
-//             })
-//             .chain(std::iter::once(NULL_DCMD))
-//             .collect::<Vec<_>>();
+const NULL_WALKER: mdb_walker_t = mdb_walker_t {
+    walk_name: null(),
+    walk_descr: null(),
+    walk_init: None,
+    walk_step: None,
+    walk_fini: None,
+    walk_init_arg: null_mut(),
+};
 
-//         let ret = mdb_modinfo_t {
-//             mi_dvers: MDB_API_VERSION,
-//             mi_dcmds: null(),
-//             mi_walkers: null(),
-//         };
-//         Box::into_raw(Box::new(ret)).cast()
-//     }
-// }
+impl Modinfo {
+    pub fn to_native(&self) -> *const mdb_modinfo_t {
+        // let dcmds = self
+        //     .dcmds
+        //     .iter()
+        //     .map(|dcmd| {
+        //         let dc_name = CString::new(dcmd.name()).unwrap().into_raw();
+        //         let dc_usage = CString::new(dcmd.usage()).unwrap().into_raw();
+        //         let dc_descr = CString::new(dcmd.description()).unwrap().into_raw();
+        //         mdb_dcmd_t {
+        //             dc_name,
+        //             dc_usage,
+        //             dc_descr,
+        //             dc_funcp: todo!(),
+        //             dc_help: todo!(),
+        //             dc_tabp: todo!(),
+        //         }
+        //     })
+        //     .chain(std::iter::once(NULL_DCMD))
+        //     .collect::<Vec<_>>();
+
+        let walkers = self
+            .walker
+            .iter()
+            .map(|w| w.linkage())
+            .chain(std::iter::once(NULL_WALKER))
+            .collect::<Vec<_>>();
+
+        let mi_walkers = walkers.as_ptr();
+
+        let ret = mdb_modinfo_t {
+            mi_dvers: MDB_API_VERSION,
+            mi_dcmds: null(),
+            mi_walkers,
+        };
+        Box::into_raw(Box::new(ret)).cast()
+    }
+}
 
 #[macro_export]
 macro_rules! mdb_print {

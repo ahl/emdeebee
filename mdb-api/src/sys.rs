@@ -117,9 +117,9 @@ pub struct mdb_walk_state_t {
 pub struct mdb_walker_t {
     pub walk_name: *const c_char,
     pub walk_descr: *const c_char,
-    pub walk_init: unsafe extern "C" fn(*mut mdb_walk_state_t) -> c_int,
-    pub walk_step: unsafe extern "C" fn(*mut mdb_walk_state_t) -> c_int,
-    pub walk_fini: unsafe extern "C" fn(*mut mdb_walk_state_t),
+    pub walk_init: Option<unsafe extern "C" fn(*mut mdb_walk_state_t) -> c_int>,
+    pub walk_step: Option<unsafe extern "C" fn(*mut mdb_walk_state_t) -> c_int>,
+    pub walk_fini: Option<unsafe extern "C" fn(*mut mdb_walk_state_t)>,
     pub walk_init_arg: *mut c_void,
 }
 
