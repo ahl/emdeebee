@@ -16,7 +16,7 @@ use std::{
 use mdb_api::{
     mdb_println,
     sys::{mdb_walk_state_t, mdb_walker_t, WALK_DONE, WALK_NEXT},
-    BigWalker,
+    WalkerLinkage,
 };
 
 type uintptr_t = c_ulong;
@@ -101,17 +101,22 @@ impl Walker for TokioTaskWalker {
     }
 }
 
-impl BigWalker for TokioTaskWalker {
-    fn linkage(&self) -> mdb_walker_t {
-        TOKIO_TASK_WALKER
+impl Drop for TokioTaskWalker {
+    fn drop(&mut self) {
+        mdb_println!("I have been dropped!")
     }
 }
 
-pub const TOKIO_TASK_WALKER: mdb_walker_t = mdb_walker_t {
-    walk_name: b"tokio_wask\0".as_ptr() as _,
-    walk_descr: b"nfw is this going to work\0".as_ptr() as _,
-    walk_init: Some(tokio_task_walk_init),
-    walk_step: Some(global_step),
-    walk_fini: Some(global_fini),
-    walk_init_arg: null_mut(),
-};
+// generated
+impl WalkerLinkage for TokioTaskWalker {
+    fn linkage() -> mdb_walker_t {
+        mdb_walker_t {
+            walk_name: b"tokio_walk\0".as_ptr() as _,
+            walk_descr: b"nfw is this going to work\0".as_ptr() as _,
+            walk_init: Some(tokio_task_walk_init),
+            walk_step: Some(global_step),
+            walk_fini: Some(global_fini),
+            walk_init_arg: null_mut(),
+        }
+    }
+}

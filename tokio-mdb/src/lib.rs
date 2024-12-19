@@ -1,11 +1,13 @@
 mod walk_tasks;
 
+use std::marker::PhantomData;
+
 use mdb_api::{
     mdb_modinfo_t,
-    sys::{mdb_dcmd_t, mdb_walk_state_t},
+    sys::{mdb_dcmd_t, mdb_walk_state_t, mdb_walker_t},
     Modinfo,
 };
-use walk_tasks::{TokioTaskWalker, TOKIO_TASK_WALKER};
+use walk_tasks::TokioTaskWalker;
 
 // const MODINFO: MdbModInfo = MdbModInfo {
 //     dcmds: &[MdbDcmd {
@@ -44,9 +46,7 @@ struct HelloDcmd;
 
 #[no_mangle]
 pub extern "C" fn _mdb_init() -> *const mdb_modinfo_t {
-    let modinfo = Modinfo {
-        walker: vec![Box::new(TokioTaskWalker::default())],
-    };
+    let modinfo = Modinfo::default().with_walker::<TokioTaskWalker>();
 
     modinfo.to_native()
 }

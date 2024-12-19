@@ -2,7 +2,6 @@ mod alloc;
 pub mod sys;
 
 use std::{
-    ffi::CString,
     marker::PhantomData,
     ptr::{null, null_mut},
 };
@@ -17,13 +16,44 @@ pub trait Dcmd {
     fn command();
 }
 
+#[derive(Default)]
 pub struct Modinfo {
-    // pub dcmds: Vec<Box<dyn Dcmd>>,
-    pub walker: Vec<Box<dyn BigWalker>>,
+    dcmds: Vec<Box<dyn InternalLinkage<mdb_dcmd_t>>>,
+    walkers: Vec<Box<dyn InternalLinkage<mdb_walker_t>>>,
 }
 
-pub trait BigWalker {
-    fn linkage(&self) -> mdb_walker_t;
+impl Modinfo {
+    pub fn with_dcmd<T: DcmdLinkage + 'static>(mut self) -> Self {
+        self.dcmds.push(Box::new(LinkageHolder::<T>(PhantomData)));
+        self
+    }
+    pub fn with_walker<T: WalkerLinkage + 'static>(mut self) -> Self {
+        self.walkers.push(Box::new(LinkageHolder::<T>(PhantomData)));
+        self
+    }
+}
+
+struct LinkageHolder<T>(PhantomData<T>);
+impl<T: WalkerLinkage> InternalLinkage<mdb_walker_t> for LinkageHolder<T> {
+    fn linkage(&self) -> mdb_walker_t {
+        T::linkage()
+    }
+}
+impl<T: DcmdLinkage> InternalLinkage<mdb_dcmd_t> for LinkageHolder<T> {
+    fn linkage(&self) -> mdb_dcmd_t {
+        T::linkage()
+    }
+}
+
+trait InternalLinkage<T> {
+    fn linkage(&self) -> T;
+}
+
+pub trait DcmdLinkage {
+    fn linkage() -> mdb_dcmd_t;
+}
+pub trait WalkerLinkage {
+    fn linkage() -> mdb_walker_t;
 }
 
 const NULL_DCMD: mdb_dcmd_t = mdb_dcmd_t {
@@ -44,39 +74,42 @@ const NULL_WALKER: mdb_walker_t = mdb_walker_t {
     walk_init_arg: null_mut(),
 };
 
+fn to_null_or_native<T, N>(list: &[Box<T>]) -> *const N
+where
+    T: InternalLinkage<N> + ?Sized,
+    N: NullNative,
+{
+    let mut list = list.iter().map(|item| item.linkage()).collect::<Vec<_>>();
+    if list.is_empty() {
+        null()
+    } else {
+        list.push(N::null());
+        list.as_ptr()
+    }
+}
+
+trait NullNative {
+    fn null() -> Self;
+}
+impl NullNative for mdb_dcmd_t {
+    fn null() -> Self {
+        NULL_DCMD
+    }
+}
+impl NullNative for mdb_walker_t {
+    fn null() -> Self {
+        NULL_WALKER
+    }
+}
+
 impl Modinfo {
     pub fn to_native(&self) -> *const mdb_modinfo_t {
-        // let dcmds = self
-        //     .dcmds
-        //     .iter()
-        //     .map(|dcmd| {
-        //         let dc_name = CString::new(dcmd.name()).unwrap().into_raw();
-        //         let dc_usage = CString::new(dcmd.usage()).unwrap().into_raw();
-        //         let dc_descr = CString::new(dcmd.description()).unwrap().into_raw();
-        //         mdb_dcmd_t {
-        //             dc_name,
-        //             dc_usage,
-        //             dc_descr,
-        //             dc_funcp: todo!(),
-        //             dc_help: todo!(),
-        //             dc_tabp: todo!(),
-        //         }
-        //     })
-        //     .chain(std::iter::once(NULL_DCMD))
-        //     .collect::<Vec<_>>();
-
-        let walkers = self
-            .walker
-            .iter()
-            .map(|w| w.linkage())
-            .chain(std::iter::once(NULL_WALKER))
-            .collect::<Vec<_>>();
-
-        let mi_walkers = walkers.as_ptr();
+        let mi_dcmds = to_null_or_native(&self.dcmds);
+        let mi_walkers = to_null_or_native(&self.walkers);
 
         let ret = mdb_modinfo_t {
             mi_dvers: MDB_API_VERSION,
-            mi_dcmds: null(),
+            mi_dcmds,
             mi_walkers,
         };
         Box::into_raw(Box::new(ret)).cast()
@@ -104,22 +137,28 @@ macro_rules! mdb_print {
 #[macro_export]
 macro_rules! mdb_println {
     () => {
-        let fmt =
-            unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"\n\0") };
-        unsafe { $crate::sys::mdb_printf(fmt.as_ptr()) };
+        {
+            let fmt =
+                unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"\n\0") };
+            unsafe { $crate::sys::mdb_printf(fmt.as_ptr()) };
+        }
     };
     ($msg:expr) => {
-        let fmt =
-            unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\n\0") };
-        let arg = ::std::ffi::CString::new($msg.to_string())
-            .expect("mdb_println CString::new()");
-        unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        {
+            let fmt =
+                unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\n\0") };
+            let arg = ::std::ffi::CString::new($msg.to_string())
+                .expect("mdb_println CString::new()");
+            unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        }
     };
     ($fmt:expr, $($arg:tt)*) => {
-        let fmt =
-            unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\n\0") };
-        let arg = ::std::ffi::CString::new(format!($fmt, $($arg)*))
-            .expect("mdb_println CString::new()");
-        unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        {
+            let fmt =
+                unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\n\0") };
+            let arg = ::std::ffi::CString::new(format!($fmt, $($arg)*))
+                .expect("mdb_println CString::new()");
+            unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        }
     }
 }
