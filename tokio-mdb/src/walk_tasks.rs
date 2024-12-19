@@ -15,8 +15,9 @@ use std::{
 
 use mdb_api::{
     mdb_println,
-    sys::{mdb_walk_state_t, mdb_walker_t, WALK_DONE, WALK_NEXT},
-    WalkerLinkage,
+    sys::{mdb_walk_state_t, mdb_walker_t, WALK_DONE, WALK_ERR, WALK_NEXT},
+    walk::{StepOutput, StepResult},
+    Addr, Walker, WalkerLinkage,
 };
 
 type uintptr_t = c_ulong;
@@ -40,34 +41,41 @@ extern "C" fn tokio_task_walk_init(state: *mut mdb_walk_state_t) -> c_int {
     WALK_NEXT
 }
 
-// applies to all
+// Function used to step any supported walker.
+//
+// This method is always registered as the `walk_step` method when registering a
+// new dmod. Implementors of the `Walker` trait are provided their own `self`
+// when we call their `Walker::step()` method. That's done by operating on a
+// trait object implementing `Walker`, which we store in the `walk_state_t`.
+// call their `Walker::step()` method.
 extern "C" fn global_step(state: *mut mdb_walk_state_t) -> c_int {
-    mdb_println!("global_step");
     let walk_data = unsafe { (*state).walk_data };
-
     let me: *mut Box<dyn Walker> = walk_data.cast();
     let ret = unsafe { &mut **me }.step();
-    // let ret = unsafe { (*xxx).step() };
 
-    let addr = match ret {
-        Ok(addr) => addr,
-        Err(ret) => {
-            mdb_println!("ded {}", ret);
-            return ret;
+    match ret {
+        Ok(StepOutput::Continue(addr)) => {
+            let walk_callback = unsafe { (*state).walk_callback };
+            let walk_cbdata = unsafe { (*state).walk_cbdata };
+            unsafe { walk_callback(addr.as_ptr(), null(), walk_cbdata) };
+            WALK_NEXT
         }
-    };
-
-    let walk_callback = unsafe { (*state).walk_callback };
-    let walk_cbdata = unsafe { (*state).walk_cbdata };
-
-    unsafe { walk_callback(addr, null(), walk_cbdata) };
-
-    WALK_NEXT
+        Ok(StepOutput::Break(_)) => {
+            mdb_println!("walk done");
+            return WALK_DONE;
+        }
+        Err(_) => {
+            mdb_println!("walk step failed");
+            return WALK_ERR;
+        }
+    }
 }
+
+// Function used to finalize any supported walker.
 extern "C" fn global_fini(state: *mut mdb_walk_state_t) {
+    // Take the trait object into a box, and let it go out of scope to free it.
     let walk_data = unsafe { (*state).walk_data };
-    let cheese: Box<Box<dyn Walker>> = unsafe { Box::from_raw(walk_data.cast()) };
-    drop(cheese);
+    let _trait_obj: Box<Box<dyn Walker>> = unsafe { Box::from_raw(walk_data.cast()) };
 }
 
 // #[derive(mdb::Walker)]
@@ -86,17 +94,20 @@ impl Default for TokioTaskWalker {
     }
 }
 
+/*
 trait Walker {
     fn step(&mut self) -> Result<uintptr_t, c_int>;
 }
+*/
 
 impl Walker for TokioTaskWalker {
-    fn step(&mut self) -> Result<uintptr_t, c_int> {
+    fn step(&mut self) -> StepResult {
         if self.current >= self.end {
-            Err(WALK_DONE)
+            Ok(StepOutput::Break(()))
+            //Err(WALK_DONE)
         } else {
             self.current += 1;
-            Ok(self.current as uintptr_t)
+            Ok(StepOutput::Continue(Addr::new(self.current as _)))
         }
     }
 }

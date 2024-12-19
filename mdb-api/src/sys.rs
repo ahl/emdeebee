@@ -44,6 +44,7 @@ pub const DCMD_USAGE: c_int = 2;
 pub const DCMD_NEXT: c_int = 3;
 pub const DCMD_ABORT: c_int = 4;
 
+// Dcmd flags
 pub const DCMD_ADDRSPEC: c_uint = 0x01;
 pub const DCMD_LOOP: c_uint = 0x02;
 pub const DCMD_LOOPFIRST: c_uint = 0x04;

@@ -4,4 +4,5 @@ members = ["mdb-api", "tokio-mdb"]
 resolver = "2"
 
 [workspace.dependencies]
+bitflags = "2.6"
 mdb-api = { path = "mdb-api" }
