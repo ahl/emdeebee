@@ -31,7 +31,9 @@ extern "C" fn tokio_task_walk_init(state: *mut mdb_walk_state_t) -> c_int {
     // Box<dyn Something>
     // store that in state.walk_data
 
-    0
+    unsafe { (*state).walk_addr = 777 };
+
+    WALK_NEXT
 }
 
 // applies to all
