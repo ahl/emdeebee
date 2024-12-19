@@ -14,6 +14,7 @@ use std::{
 };
 
 use mdb_api::{
+    mdb_println,
     sys::{mdb_walk_state_t, mdb_walker_t, WALK_DONE, WALK_NEXT},
     BigWalker,
 };
@@ -22,6 +23,7 @@ type uintptr_t = c_ulong;
 
 // generated
 extern "C" fn tokio_task_walk_init(state: *mut mdb_walk_state_t) -> c_int {
+    mdb_println!("here");
     let me: TokioTaskWalker = TokioTaskWalker::default();
     let walk_data = Box::into_raw(Box::new(Box::new(me) as Box<dyn Walker>));
 
