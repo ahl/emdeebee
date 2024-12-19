@@ -35,11 +35,14 @@ extern "C" fn tokio_task_walk_init(state: *mut mdb_walk_state_t) -> c_int {
 
     unsafe { (*state).walk_addr = 777 };
 
+    mdb_println!("next");
+
     WALK_NEXT
 }
 
 // applies to all
 extern "C" fn global_step(state: *mut mdb_walk_state_t) -> c_int {
+    mdb_println!("global_step");
     let walk_data = unsafe { (*state).walk_data };
 
     let me: *mut Box<dyn Walker> = walk_data.cast();
@@ -48,7 +51,10 @@ extern "C" fn global_step(state: *mut mdb_walk_state_t) -> c_int {
 
     let addr = match ret {
         Ok(addr) => addr,
-        Err(ret) => return ret,
+        Err(ret) => {
+            mdb_println!("ded {}", ret);
+            return ret;
+        }
     };
 
     let walk_callback = unsafe { (*state).walk_callback };
@@ -86,7 +92,7 @@ trait Walker {
 
 impl Walker for TokioTaskWalker {
     fn step(&mut self) -> Result<uintptr_t, c_int> {
-        if self.current <= self.end {
+        if self.current >= self.end {
             Err(WALK_DONE)
         } else {
             self.current += 1;
