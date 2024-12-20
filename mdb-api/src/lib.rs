@@ -4,6 +4,8 @@ pub mod dcmd;
 pub mod sys;
 pub mod walk;
 
+pub use mdb_derive::Walker;
+
 use std::{
     marker::PhantomData,
     ptr::{null, null_mut},
@@ -13,6 +15,7 @@ pub use sys::mdb_modinfo_t;
 use sys::{mdb_dcmd_t, mdb_walker_t, MDB_API_VERSION};
 
 pub use dcmd::Dcmd;
+pub use walk::WalkStep;
 pub use walk::Walker;
 
 /// An address used in MDB.

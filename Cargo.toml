@@ -1,8 +1,13 @@
 [workspace]
-members = ["mdb-api", "tokio-mdb"]
+members = ["mdb-api", "mdb-derive", "tokio-mdb"]
 
 resolver = "2"
 
 [workspace.dependencies]
 bitflags = "2.6"
+heck = "0.5"
 mdb-api = { path = "mdb-api" }
+mdb-derive = { path = "mdb-derive" }
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"

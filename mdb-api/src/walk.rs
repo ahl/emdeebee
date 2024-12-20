@@ -4,8 +4,14 @@ use std::ops::ControlFlow;
 
 use crate::Addr;
 
-/// Trait implementing an MDB walker.
-pub trait Walker {
+/// A trait for an MDB walker.
+pub trait Walker {}
+
+/// Trait implementing a single step in an MDB walker.
+///
+/// This is the main trait a walker needs to implement. The other, `Walker`,
+/// should be derived.
+pub trait WalkStep {
     /// Take a walk step.
     fn step(&mut self) -> StepResult;
 }
