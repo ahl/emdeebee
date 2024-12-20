@@ -8,7 +8,12 @@ use crate::{
 };
 
 /// A trait for an MDB walker.
-pub trait Walker {}
+///
+/// This trait should be derived. It constructs the FFI types needed to actually
+/// register a module with mdb dynamically.
+pub trait Walker {
+    fn linkage() -> crate::sys::mdb_walker_t;
+}
 
 /// Trait implementing a single step in an MDB walker.
 ///

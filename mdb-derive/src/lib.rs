@@ -20,11 +20,6 @@ pub fn walker(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    // Implement walker trait itself.
-    let walker_impl = quote::quote! {
-        impl ::mdb_api::Walker for #ident {}
-    };
-
     // Construct byte strings representing the walker name and description.
     // These need to be null-terminated for MDB, and we pull them from the type
     // name and docstring, respectively.
@@ -49,9 +44,9 @@ pub fn walker(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let walk_descr =
         str_to_lit_byte_str(docstring.trim_matches(|c: char| c == '"' || c.is_whitespace()));
 
-    // Implement the linkage trait.
-    let linkage_impl = quote::quote! {
-        impl ::mdb_api::WalkerLinkage for #ident {
+    // Implement the walker trait.
+    let walker_impl = quote::quote! {
+        impl ::mdb_api::Walker for #ident {
             fn linkage() -> ::mdb_api::sys::mdb_walker_t {
                 ::mdb_api::sys::mdb_walker_t {
                     walk_name: #walk_name.as_ptr().cast(),
@@ -68,7 +63,6 @@ pub fn walker(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     quote::quote! {
         #init_fn
         #walker_impl
-        #linkage_impl
     }
     .into()
 }

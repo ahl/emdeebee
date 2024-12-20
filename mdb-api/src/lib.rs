@@ -57,7 +57,7 @@ impl Modinfo {
     }
 
     /// Add a walker to the module.
-    pub fn with_walker<T: WalkerLinkage + 'static>(mut self) -> Self {
+    pub fn with_walker<T: Walker + 'static>(mut self) -> Self {
         self.walkers.push(Box::new(LinkageHolder::<T>(PhantomData)));
         self
     }
@@ -67,7 +67,7 @@ impl Modinfo {
 // module information for dcmds or walkers.
 struct LinkageHolder<T>(PhantomData<T>);
 
-impl<T: WalkerLinkage> InternalLinkage<mdb_walker_t> for LinkageHolder<T> {
+impl<T: Walker> InternalLinkage<mdb_walker_t> for LinkageHolder<T> {
     fn linkage(&self) -> mdb_walker_t {
         T::linkage()
     }
@@ -90,10 +90,10 @@ pub trait DcmdLinkage {
     fn linkage() -> mdb_dcmd_t;
 }
 
-// TODO impl this when deriving `mdb::Walker` or whatever
-pub trait WalkerLinkage {
-    fn linkage() -> mdb_walker_t;
-}
+/// A helper trait for marshalling objects during walk steps.
+///
+/// Do not implement this yourself. Derive `Walker`, which does that for you.
+pub trait WalkerLinkage {}
 
 // An empty dcmd, used to terminate the list of registered commands in the
 // module.
@@ -216,6 +216,8 @@ macro_rules! mdb_println {
     }
 }
 
+/// Macro that helps generate the dmod itself, by attaching the walkers and
+/// dcmds and emitting the symbol `mdb` needs when loading the dmod dynamically.
 #[macro_export]
 macro_rules! dmod {
     (commands = [$($commands:ty),*], walkers = [$($walkers:ty),*] $(,)?) => {
