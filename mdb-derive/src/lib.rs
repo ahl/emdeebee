@@ -13,22 +13,21 @@ pub fn walker(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let init_fn_name = quote::format_ident!("{}_init", snake_case);
     let init_fn = quote::quote! {
         extern "C" fn #init_fn_name(state: *mut ::mdb_api::sys::mdb_walk_state_t) -> ::std::ffi::c_int {
-            ::mdb_api::mdb_println!("here");
             let me = #ident::default();
             let walk_data = Box::into_raw(Box::new(Box::new(me) as Box<dyn ::mdb_api::walk::WalkStep>));
             unsafe { (*state).walk_data = walk_data.cast() };
-            ::mdb_api::mdb_println!("next");
             ::mdb_api::sys::WALK_NEXT
         }
     };
 
-    // Implement walker itself.
+    // Implement walker trait itself.
     let walker_impl = quote::quote! {
         impl ::mdb_api::Walker for #ident {}
     };
 
-    // Implement the walker linkage trait. Start by constructing the walker
-    // name and description.
+    // Construct byte strings representing the walker name and description.
+    // These need to be null-terminated for MDB, and we pull them from the type
+    // name and docstring, respectively.
     let walk_name = str_to_lit_byte_str(&snake_case);
     let docstring = derive_input
         .attrs
@@ -50,6 +49,7 @@ pub fn walker(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let walk_descr =
         str_to_lit_byte_str(docstring.trim_matches(|c: char| c == '"' || c.is_whitespace()));
 
+    // Implement the linkage trait.
     let linkage_impl = quote::quote! {
         impl ::mdb_api::WalkerLinkage for #ident {
             fn linkage() -> ::mdb_api::sys::mdb_walker_t {
@@ -57,8 +57,8 @@ pub fn walker(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     walk_name: #walk_name.as_ptr().cast(),
                     walk_descr: #walk_descr.as_ptr().cast(),
                     walk_init: Some(#init_fn_name),
-                    walk_step: Some(global_step),
-                    walk_fini: Some(global_fini),
+                    walk_step: Some(::mdb_api::walk::global_step),
+                    walk_fini: Some(::mdb_api::walk::global_fini),
                     walk_init_arg: ::std::ptr::null_mut(),
                 }
             }
@@ -73,6 +73,7 @@ pub fn walker(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     .into()
 }
 
+// Helper to construct a literal byte str with the contents of a string.
 fn str_to_lit_byte_str(s: &str) -> LitByteStr {
     let mut bytes = s.as_bytes().to_vec();
     bytes.push(0);
@@ -115,30 +116,16 @@ pub fn dcmd(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
                 return Error::new_spanned(
-                    &path,
-                    "Unsupported walker type, must be a u64, char, or string",
+                    path,
+                    "Unsupported dcmd type, must be a u64, char, or string",
                 )
                 .into_compile_error()
                 .into();
             }
-            Type::Array(_)
-            | Type::BareFn(_)
-            | Type::Group(_)
-            | Type::ImplTrait(_)
-            | Type::Infer(_)
-            | Type::Macro(_)
-            | Type::Never(_)
-            | Type::Paren(_)
-            | Type::Ptr(_)
-            | Type::Reference(_)
-            | Type::Slice(_)
-            | Type::TraitObject(_)
-            | Type::Tuple(_)
-            | Type::Verbatim(_)
-            | _ => {
+            _ => {
                 return Error::new_spanned(
                     &field.ty,
-                    "Unsupported walker type, must be a u64, char, or string",
+                    "Unsupported dcmd type, must be a u64, char, or string",
                 )
                 .into_compile_error()
                 .into()

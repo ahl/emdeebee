@@ -1,14 +1,5 @@
 mod walk_tasks;
 
-use std::marker::PhantomData;
-
-use mdb_api::{
-    mdb_modinfo_t,
-    sys::{mdb_dcmd_t, mdb_walk_state_t, mdb_walker_t},
-    Modinfo,
-};
-use walk_tasks::TokioTaskWalker;
-
 // const MODINFO: MdbModInfo = MdbModInfo {
 //     dcmds: &[MdbDcmd {
 //         name: "test1",
@@ -18,7 +9,7 @@ use walk_tasks::TokioTaskWalker;
 //     }],
 // };
 
-struct HelloDcmd;
+//struct HelloDcmd;
 
 // impl MdbDcmdImpl for HelloDcmd {
 //     fn name() -> String {
@@ -44,16 +35,16 @@ struct HelloDcmd;
 //     // }
 // }
 
-#[no_mangle]
-pub extern "C" fn _mdb_init() -> *const mdb_modinfo_t {
-    let modinfo = Modinfo::default().with_walker::<TokioTaskWalker>();
-
-    modinfo.to_native()
+mdb_api::dmod! {
+    commands = [],
+    walkers = [walk_tasks::TokioTaskWalker],
 }
+
 // /// this is the description
 // #[mdb_magic]
 // fn potato(addr: u64, flags: u16, args: Vec<EnumThings>) {}
 
+/*
 /// descr
 struct Tokio {
     // #[clapish(long, short = "f")]
@@ -62,6 +53,7 @@ struct Tokio {
     yes: bool,
     // everythingelse: Vec<stuff>,
 }
+*/
 
 // impl DcmdFn for Tokio {
 //     fn dcmd(&self, addr: u64, flags: u16) {}

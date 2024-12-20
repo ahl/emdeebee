@@ -215,3 +215,16 @@ macro_rules! mdb_println {
         }
     }
 }
+
+#[macro_export]
+macro_rules! dmod {
+    (commands = [$($commands:ty),*], walkers = [$($walkers:ty),*] $(,)?) => {
+        #[no_mangle]
+        pub extern "C" fn _mdb_init() -> *const ::mdb_api::sys::mdb_modinfo_t {
+            let modinfo = ::mdb_api::Modinfo::default();
+            $(let modinfo = modinfo.with_walker::<$walkers>();)*
+            $(let modinfo = modinfo.with_dcmd::<$commands>();)*
+            modinfo.to_native()
+        }
+    }
+}

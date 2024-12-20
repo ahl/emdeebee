@@ -1,3 +1,5 @@
+//! Implement dcmds for an MDB dmod.
+
 use std::ffi::{c_int, c_uint};
 
 use crate::sys::{DCMD_ABORT, DCMD_ERR, DCMD_NEXT, DCMD_OK, DCMD_USAGE};
@@ -18,6 +20,7 @@ pub enum Code {
 }
 
 impl Code {
+    #[allow(dead_code)]
     pub(crate) const fn to_int(self) -> c_int {
         match self {
             Code::Ok => DCMD_OK,
