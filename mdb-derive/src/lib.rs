@@ -74,7 +74,7 @@ fn str_to_lit_byte_str(s: &str) -> LitByteStr {
     LitByteStr::new(&bytes, Span::call_site())
 }
 
-#[proc_macro_derive(Dcmd)]
+#[proc_macro_derive(Dcmd, attributes(arg))]
 pub fn dcmd(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
     let Data::Struct(s) = &derive_input.data else {
@@ -126,7 +126,6 @@ pub fn dcmd(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     }
-
     proc_macro::TokenStream::new()
 }
 

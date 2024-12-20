@@ -2,7 +2,7 @@
 
 use std::ffi::{c_int, c_uint};
 
-use crate::sys::{DCMD_ABORT, DCMD_ERR, DCMD_NEXT, DCMD_OK, DCMD_USAGE};
+use crate::{sys::{mdb_dcmd_t, DCMD_ABORT, DCMD_ERR, DCMD_NEXT, DCMD_OK, DCMD_USAGE}, Addr};
 
 /// The return code from a dcmd.
 #[derive(Clone, Copy, Debug)]
@@ -21,7 +21,7 @@ pub enum Code {
 
 impl Code {
     #[allow(dead_code)]
-    pub(crate) const fn to_int(self) -> c_int {
+    pub const fn to_int(self) -> c_int {
         match self {
             Code::Ok => DCMD_OK,
             Code::Err => DCMD_ERR,
@@ -48,22 +48,73 @@ bitflags::bitflags! {
     }
 }
 
+// Mirrored after the walker thing, we have the derivable Dcmd trait, but then
+// have people just impl the actual command.
+
 /// An MDB dcmd.
-pub trait Dcmd {
-    /// The name of the command.
-    fn name(&self) -> &'static str;
+pub trait Dcmd: DcmdFn {
+    fn from_args(args: Vec<Arg>) -> Result<Self, String> where Self: Sized;
 
-    /// The long-form usage of the command.
-    fn usage(&self) -> Option<&'static str> {
-        None
+    fn linkage() -> mdb_dcmd_t;
+
+    fn help() -> &'static str {
+        ""
     }
-
-    /// The short description of the command.
-    fn description(&self) -> &'static str;
-
-    /// The function invoking the command itself.
-    fn command(&self) -> Code;
 }
+
+/// Trait implementing the actual dcmd operation.
+pub trait DcmdFn {
+    fn call(&self, addr: Addr, flags: Flags) -> Code;
+}
+
+/// A generic argument to a dcmd.
+#[derive(Clone, Debug)]
+pub enum Arg {
+    String(String),
+    U64(u64),
+}
+
+impl TryFrom<Arg> for String {
+    type Error = ();
+
+    fn try_from(value: Arg) -> Result<Self, Self::Error> {
+        match value {
+            Arg::String(s) => Ok(s),
+            Arg::U64(_) => Err(()),
+        }
+    }
+}
+
+macro_rules! impl_try_from_arg {
+    ($int:ty) => {
+        impl TryFrom<Arg> for $int {
+            type Error = ();
+
+            fn try_from(value: Arg) -> Result<Self, Self::Error> {
+                let Arg::U64(x) = value else {
+                    return Err(());
+                };
+                Self::try_from(x).map_err(|_| ())
+            }
+        }
+    }
+}
+
+impl_try_from_arg!(u8);
+impl_try_from_arg!(u16);
+impl_try_from_arg!(u32);
+impl_try_from_arg!(u64);
+impl_try_from_arg!(i8);
+impl_try_from_arg!(i16);
+impl_try_from_arg!(i32);
+impl_try_from_arg!(i64);
+
+// Generated code:
+//
+// - emits dcmd fn pointer which
+// - converts arguments to arg enum
+// - tries to parse according to struct defn
+// - tries to construct Self from them, failing for non-optionals
 
 // TODO add a derive for this on a struct, which generates the code in
 // tokio-mdb/src/lib.rs:

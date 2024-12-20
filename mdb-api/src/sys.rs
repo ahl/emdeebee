@@ -3,7 +3,7 @@
 use std::ffi::{c_char, c_int, c_uint, c_ulong, c_ulonglong, c_ushort, c_void};
 
 pub(crate) type size_t = c_ulong;
-pub(crate) type uintptr_t = c_ulong;
+pub type uintptr_t = c_ulong;
 pub(crate) type uintmax_t = c_ulonglong;
 
 pub const MDB_API_VERSION: c_ushort = 5;
@@ -136,6 +136,7 @@ pub const UM_SLEEP: c_uint = 0x1;
 
 extern "C" {
     pub fn mdb_printf(fmt: *const c_char, ...);
+    pub fn mdb_warn(fmt: *const c_char, ...);
 
     pub fn mdb_alloc(size: size_t, flags: c_uint) -> *mut c_void;
     pub fn mdb_free(void: *mut c_void, size: size_t);

@@ -40,6 +40,18 @@ impl From<u64> for Addr {
     }
 }
 
+impl std::fmt::Display for Addr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::fmt::LowerHex for Addr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// Information describing a loadable MDB dmod.
 #[derive(Default)]
 pub struct Modinfo {
@@ -51,7 +63,7 @@ pub struct Modinfo {
 
 impl Modinfo {
     /// Add a dcmd to the module.
-    pub fn with_dcmd<T: DcmdLinkage + 'static>(mut self) -> Self {
+    pub fn with_dcmd<T: Dcmd + 'static>(mut self) -> Self {
         self.dcmds.push(Box::new(LinkageHolder::<T>(PhantomData)));
         self
     }
@@ -73,7 +85,7 @@ impl<T: Walker> InternalLinkage<mdb_walker_t> for LinkageHolder<T> {
     }
 }
 
-impl<T: DcmdLinkage> InternalLinkage<mdb_dcmd_t> for LinkageHolder<T> {
+impl<T: Dcmd> InternalLinkage<mdb_dcmd_t> for LinkageHolder<T> {
     fn linkage(&self) -> mdb_dcmd_t {
         T::linkage()
     }
@@ -83,11 +95,6 @@ impl<T: DcmdLinkage> InternalLinkage<mdb_dcmd_t> for LinkageHolder<T> {
 // right mdb info structs for dcmds or walkers.
 trait InternalLinkage<T> {
     fn linkage(&self) -> T;
-}
-
-// TODO impl this when deriving `mdb::Dcmd` or whatever
-pub trait DcmdLinkage {
-    fn linkage() -> mdb_dcmd_t;
 }
 
 /// A helper trait for marshalling objects during walk steps.
@@ -212,6 +219,28 @@ macro_rules! mdb_println {
             let arg = ::std::ffi::CString::new(format!($fmt, $($arg)*))
                 .expect("mdb_println CString::new()");
             unsafe { $crate::sys::mdb_printf(fmt.as_ptr(), arg.as_ptr()) };
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! mdb_warn {
+    ($msg:expr) => {
+        {
+            let fmt =
+                unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\n\0") };
+            let arg = ::std::ffi::CString::new($msg.to_string())
+                .expect("mdb_warn CString::new()");
+            unsafe { $crate::sys::mdb_warn(fmt.as_ptr(), arg.as_ptr()) };
+        }
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        {
+            let fmt =
+                unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"%s\n\0") };
+            let arg = ::std::ffi::CString::new(format!($fmt, $($arg)*))
+                .expect("mdb_warn CString::new()");
+            unsafe { $crate::sys::mdb_warn(fmt.as_ptr(), arg.as_ptr()) };
         }
     }
 }
