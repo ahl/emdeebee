@@ -2,7 +2,10 @@
 
 use std::ffi::{c_int, c_uint};
 
-use crate::{sys::{mdb_dcmd_t, DCMD_ABORT, DCMD_ERR, DCMD_NEXT, DCMD_OK, DCMD_USAGE}, Addr};
+use crate::{
+    sys::{mdb_dcmd_t, DCMD_ABORT, DCMD_ERR, DCMD_NEXT, DCMD_OK, DCMD_USAGE},
+    Addr,
+};
 
 /// The return code from a dcmd.
 #[derive(Clone, Copy, Debug)]
@@ -34,6 +37,7 @@ impl Code {
 
 bitflags::bitflags! {
     /// Flags passed to a dcmd.
+    #[derive(Clone, Copy, Debug)]
     pub struct Flags: c_uint {
         /// An explicit address was specified for the dcmd.
         const AddrSpec = 0x01;
@@ -53,7 +57,9 @@ bitflags::bitflags! {
 
 /// An MDB dcmd.
 pub trait Dcmd: DcmdFn {
-    fn from_args(args: Vec<Arg>) -> Result<Self, String> where Self: Sized;
+    fn from_args(args: Vec<Arg>) -> Result<Self, String>
+    where
+        Self: Sized;
 
     fn linkage() -> mdb_dcmd_t;
 
@@ -74,6 +80,15 @@ pub enum Arg {
     U64(u64),
 }
 
+impl std::fmt::Display for Arg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Arg::String(s) => s.fmt(f),
+            Arg::U64(x) => x.fmt(f),
+        }
+    }
+}
+
 impl TryFrom<Arg> for String {
     type Error = ();
 
@@ -85,19 +100,41 @@ impl TryFrom<Arg> for String {
     }
 }
 
+impl TryFrom<&Arg> for String {
+    type Error = ();
+
+    fn try_from(value: &Arg) -> Result<Self, Self::Error> {
+        match value {
+            Arg::String(s) => Ok(s.clone()),
+            Arg::U64(_) => Err(()),
+        }
+    }
+}
+
 macro_rules! impl_try_from_arg {
     ($int:ty) => {
         impl TryFrom<Arg> for $int {
             type Error = ();
 
             fn try_from(value: Arg) -> Result<Self, Self::Error> {
-                let Arg::U64(x) = value else {
-                    return Err(());
-                };
-                Self::try_from(x).map_err(|_| ())
+                match value {
+                    Arg::U64(x) => Self::try_from(x).map_err(|_| ()),
+                    Arg::String(s) => s.parse().map_err(|_| ()),
+                }
             }
         }
-    }
+
+        impl TryFrom<&Arg> for $int {
+            type Error = ();
+
+            fn try_from(value: &Arg) -> Result<Self, Self::Error> {
+                match value {
+                    Arg::U64(x) => Self::try_from(*x).map_err(|_| ()),
+                    Arg::String(s) => s.parse().map_err(|_| ()),
+                }
+            }
+        }
+    };
 }
 
 impl_try_from_arg!(u8);
